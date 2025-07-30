@@ -1,7 +1,7 @@
 import logging
-from struct import pack
 import re
 import base64
+from struct import pack
 from pyrogram.file_id import FileId
 from pymongo.errors import DuplicateKeyError
 from umongo import Instance, Document, fields
@@ -31,9 +31,8 @@ class Media(Document):
         collection_name = COLLECTION_NAME
 
 async def save_file(media):
-    """Save file in database"""
     file_id, file_ref = unpack_new_file_id(media.file_id)
-    file_name = re.sub(r"(_|\-|\.|\+)", " ", str(media.file_name)).lower().strip()
+    file_name = re.sub(r"[_\-.+]", " ", str(media.file_name)).lower().strip()
     try:
         file = Media(
             file_id=file_id,
@@ -51,16 +50,13 @@ async def save_file(media):
         try:
             await file.commit()
         except DuplicateKeyError:
-            logger.warning(
-                f'{getattr(media, "file_name", "NO_FILE")} is already saved in database'
-            )
+            logger.warning(f'{getattr(media, "file_name", "NO_FILE")} already saved in database')
             return False, 0
         else:
-            logger.info(f'{getattr(media, "file_name", "NO_FILE")} is saved to database')
+            logger.info(f'{getattr(media, "file_name", "NO_FILE")} saved to database')
             return True, 1
 
-async def get_search_results(query, file_type=None, max_results=10, offset=0, filter=False):
-    """For given query return (results, next_offset, total_results)"""
+async def get_search_results(query, file_type=None, max_results=10, offset=0):
     query = query.strip().lower()
     if not query:
         return [], 0, 0
@@ -69,31 +65,37 @@ async def get_search_results(query, file_type=None, max_results=10, offset=0, fi
         if USE_CAPTION_FILTER:
             filter_query = {
                 '$or': [
-                    {'$text': {'$search': f'"{query}"'}},  # Exact phrase search
+                    {'$text': {'$search': f'"{query}"'}},
                     {'file_name': {'$regex': re.escape(query), '$options': 'i'}},
                     {'caption': {'$regex': re.escape(query), '$options': 'i'}}
                 ]
             }
         else:
-            filter_query = {'$text': {'$search': f'"{query}"'}}  # Use text index
+            filter_query = {'$text': {'$search': f'"{query}"'}}
 
         if file_type:
             filter_query['file_type'] = file_type
 
         total_results = await Media.count_documents(filter_query)
-        cursor = Media.find(filter_query)
-        cursor.sort('$natural', -1)
-        cursor.skip(offset).limit(max_results)
+
+        # Sort logic depending on whether text search is used
+        if ('$text' in filter_query) or (USE_CAPTION_FILTER and any('$text' in cond for cond in filter_query.get('$or', []))):
+            cursor = Media.find(filter_query, {"score": {"$meta": "textScore"}})
+            cursor = cursor.sort([("score", {"$meta": "textScore"})])
+        else:
+            cursor = Media.find(filter_query).sort([("$natural", -1)])
+
+        cursor = cursor.skip(offset).limit(max_results)
         files = await cursor.to_list(length=max_results)
         next_offset = offset + max_results if len(files) == max_results else ''
         return files, next_offset, total_results
+
     except Exception as e:
         logger.exception(f"Search error: {e}")
         return [], 0, 0
 
 async def get_file_details(query):
-    filter = {'file_id': query}
-    cursor = Media.find(filter)
+    cursor = Media.find({'file_id': query})
     filedetails = await cursor.to_list(length=1)
     return filedetails
 
@@ -114,7 +116,6 @@ def encode_file_ref(file_ref: bytes) -> str:
     return base64.urlsafe_b64encode(file_ref).decode().rstrip("=")
 
 def unpack_new_file_id(new_file_id):
-    """Return file_id, file_ref"""
     decoded = FileId.decode(new_file_id)
     file_id = encode_file_id(
         pack(
