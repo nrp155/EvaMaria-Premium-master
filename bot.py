@@ -2,7 +2,7 @@ import logging
 import logging.config
 from pyrogram import Client, __version__
 from pyrogram.raw.all import layer
-from database import Media, db  # Assuming you put your database code in database.py and exposed Media, db
+from ia_filterdb import Media, db  # Changed to ia_filterdb, where your DB code resides
 from info import SESSION, API_ID, API_HASH, BOT_TOKEN, LOG_STR
 from utils import temp
 from typing import Union, Optional, AsyncGenerator
@@ -28,14 +28,11 @@ class Bot(Client):
         )
 
     async def start(self):
-        # Load banned users and chats
         b_users, b_chats = await db.get_banned()
         temp.BANNED_USERS = b_users
         temp.BANNED_CHATS = b_chats
         
         await super().start()
-
-        # Ensure DB indexes are ready
         await Media.ensure_indexes()
 
         me = await self.get_me()
