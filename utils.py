@@ -41,6 +41,23 @@ class temp(object):
     B_NAME = None
     SETTINGS = {}
 
+async def is_subscribed(client, message):
+    """Check if a user is subscribed to the AUTH_CHANNEL."""
+    try:
+        user = await client.get_chat_member(
+            chat_id=AUTH_CHANNEL, user_id=message.from_user.id
+        )
+        return user.status in [
+            enums.ChatMemberStatus.MEMBER,
+            enums.ChatMemberStatus.ADMINISTRATOR,
+            enums.ChatMemberStatus.OWNER
+        ]
+    except UserNotParticipant:
+        return False
+    except Exception as e:
+        logger.exception(f"Error checking subscription: {e}")
+        return False
+
 @lru_cache(maxsize=1000)
 async def get_poster(query, bulk=False, id=False, file=None):
     if not id:
