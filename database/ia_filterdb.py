@@ -1,7 +1,7 @@
 import logging
+from struct import pack
 import re
 import base64
-from struct import pack
 from pyrogram.file_id import FileId
 from pymongo.errors import DuplicateKeyError
 from umongo import Instance, Document, fields
@@ -12,6 +12,7 @@ from info import DATABASE_URI, DATABASE_NAME, COLLECTION_NAME, USE_CAPTION_FILTE
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# MongoDB client and umongo instance setup
 client = AsyncIOMotorClient(DATABASE_URI)
 db = client[DATABASE_NAME]
 instance = Instance.from_db(db)
@@ -27,12 +28,16 @@ class Media(Document):
     caption = fields.StrField(allow_none=True)
 
     class Meta:
-        indexes = ([("file_name", "text"), ("caption", "text")],)
+        indexes = [
+            ("file_name", "text"),
+            ("caption", "text")
+        ]
         collection_name = COLLECTION_NAME
 
 async def save_file(media):
+    """Save file in database"""
     file_id, file_ref = unpack_new_file_id(media.file_id)
-    file_name = re.sub(r"[_\-.+]", " ", str(media.file_name)).lower().strip()
+    file_name = re.sub(r"[_\-\.\+]", " ", str(media.file_name)).lower().strip()
     try:
         file = Media(
             file_id=file_id,
@@ -41,7 +46,7 @@ async def save_file(media):
             file_size=media.file_size,
             file_type=media.file_type,
             mime_type=media.mime_type,
-            caption=media.caption.html if media.caption else None,
+            caption=media.caption.html if hasattr(media.caption, 'html') else (media.caption or None),
         )
     except ValidationError:
         logger.exception('Error occurred while saving file in database')
@@ -50,13 +55,16 @@ async def save_file(media):
         try:
             await file.commit()
         except DuplicateKeyError:
-            logger.warning(f'{getattr(media, "file_name", "NO_FILE")} already saved in database')
+            logger.warning(
+                f'{getattr(media, "file_name", "NO_FILE")} is already saved in database'
+            )
             return False, 0
         else:
-            logger.info(f'{getattr(media, "file_name", "NO_FILE")} saved to database')
+            logger.info(f'{getattr(media, "file_name", "NO_FILE")} is saved to database')
             return True, 1
 
 async def get_search_results(query, file_type=None, max_results=10, offset=0):
+    """For given query return (results, next_offset, total_results)"""
     query = query.strip().lower()
     if not query:
         return [], 0, 0
@@ -65,37 +73,35 @@ async def get_search_results(query, file_type=None, max_results=10, offset=0):
         if USE_CAPTION_FILTER:
             filter_query = {
                 '$or': [
-                    {'$text': {'$search': f'"{query}"'}},
+                    {'$text': {'$search': f'"{query}"'}},  # Exact phrase search
                     {'file_name': {'$regex': re.escape(query), '$options': 'i'}},
                     {'caption': {'$regex': re.escape(query), '$options': 'i'}}
                 ]
             }
+            cursor = Media.find(filter_query)
+            # Sorting by score is complicated with $or text, so no $meta sorting here
         else:
             filter_query = {'$text': {'$search': f'"{query}"'}}
+            cursor = Media.find(filter_query, {'score': {'$meta': 'textScore'}})
+            cursor.sort([('score', {'$meta': 'textScore'})])
 
         if file_type:
             filter_query['file_type'] = file_type
 
         total_results = await Media.count_documents(filter_query)
 
-        # Sort logic depending on whether text search is used
-        if ('$text' in filter_query) or (USE_CAPTION_FILTER and any('$text' in cond for cond in filter_query.get('$or', []))):
-            cursor = Media.find(filter_query, {"score": {"$meta": "textScore"}})
-            cursor = cursor.sort([("score", {"$meta": "textScore"})])
-        else:
-            cursor = Media.find(filter_query).sort([("$natural", -1)])
-
-        cursor = cursor.skip(offset).limit(max_results)
+        cursor.skip(offset).limit(max_results)
         files = await cursor.to_list(length=max_results)
+
         next_offset = offset + max_results if len(files) == max_results else ''
         return files, next_offset, total_results
-
     except Exception as e:
         logger.exception(f"Search error: {e}")
         return [], 0, 0
 
 async def get_file_details(query):
-    cursor = Media.find({'file_id': query})
+    filter_ = {'file_id': query}
+    cursor = Media.find(filter_)
     filedetails = await cursor.to_list(length=1)
     return filedetails
 
@@ -116,6 +122,7 @@ def encode_file_ref(file_ref: bytes) -> str:
     return base64.urlsafe_b64encode(file_ref).decode().rstrip("=")
 
 def unpack_new_file_id(new_file_id):
+    """Return file_id, file_ref"""
     decoded = FileId.decode(new_file_id)
     file_id = encode_file_id(
         pack(
