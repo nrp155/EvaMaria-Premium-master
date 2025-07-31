@@ -71,6 +71,8 @@ async def save_file(media):
 async def get_search_results(query, file_type=None, max_results=10, offset=0, filter=False):
     """For given query return (results, next_offset, total_results)"""
     query = re.sub(r'\s+', ' ', query.strip().lower())  # Normalize spaces
+    logger.info(f"Processing query: {query}")
+    
     # Extract year if present
     year_match = re.search(r'\b(19|20)\d{2}\b', query)
     year = year_match.group(0) if year_match else None
@@ -80,14 +82,16 @@ async def get_search_results(query, file_type=None, max_results=10, offset=0, fi
     if not query:
         raw_pattern = '.'
     else:
-        # Create a regex that matches spaces or hyphens interchangeably
-        raw_pattern = query.replace(' ', r'[\s\-]*')
+        # Create a regex that matches spaces or hyphens, preserves colons
+        raw_pattern = re.escape(query).replace(r'\ ', r'[\s\-]+').replace(r'\:', r':')
         if year:
             raw_pattern = f"{raw_pattern}(?:[\s\(\[]*{year}[\)\]]*)?"
     
     try:
         regex = re.compile(raw_pattern, flags=re.IGNORECASE)
-    except:
+        logger.info(f"Generated regex: {raw_pattern}")
+    except Exception as e:
+        logger.error(f"Regex compilation failed for pattern {raw_pattern}: {str(e)}")
         return [], '', 0
 
     if USE_CAPTION_FILTER:
@@ -106,12 +110,19 @@ async def get_search_results(query, file_type=None, max_results=10, offset=0, fi
         filter_dict['file_type'] = file_type
 
     total_results = await Media.count_documents(filter_dict)
+    logger.info(f"Found {total_results} results for query: {query}")
     next_offset = offset + max_results if offset + max_results < total_results else ''
 
     cursor = Media.find(filter_dict)
     cursor.sort('$natural', -1)
     cursor.skip(offset).limit(max_results)
     files = await cursor.to_list(length=max_results)
+    
+    # Log matched files for debugging
+    if files:
+        logger.info(f"Matched files: {[file.file_name for file in files]}")
+    else:
+        logger.info("No files matched the query.")
 
     return files, next_offset, total_results
 
