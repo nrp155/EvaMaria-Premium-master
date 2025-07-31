@@ -170,7 +170,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         else:
             return await query.answer('Piracy Is Crime')
 
-        st = await client.get_idx_member(grp_id, userid)
+        st = await client.get_chat_member(grp_id, userid)
         if (st.status == enums.ChatMemberStatus.OWNER) or (str(userid) in ADMINS):
             await del_all(query.message, grp_id, title)
         else:
@@ -416,7 +416,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton('Auto Filter', callback_data='autofilter')
         ], [
             InlineKeyboardButton('Connection', callback_data='coct'),
-            InlineKeyboardButton('Extra Mods',MEA callback_data='extra')
+            InlineKeyboardButton('Extra Mods', callback_data='extra')
         ], [
             InlineKeyboardButton('🏠 Home', callback_data='start'),
             InlineKeyboardButton('🔮 Status', callback_data='stats')
