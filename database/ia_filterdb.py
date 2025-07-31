@@ -21,7 +21,7 @@ class Media(Document):
     file_id = fields.StrField(attribute='_id')
     file_ref = fields.StrField(allow_none=True)
     file_name = fields.StrField(required=True)
-    normalized_file_name = fields.StrField(allow_none=True)  # New field for normalized name
+    normalized_file_name = fields.StrField(allow_none=True)
     file_size = fields.IntField(required=True)
     file_type = fields.StrField(allow_none=True)
     mime_type = fields.StrField(allow_none=True)
@@ -29,17 +29,15 @@ class Media(Document):
 
     class Meta:
         indexes = [
-            ('file_name',),  # Regular index on file_name
-            ('text', 'normalized_file_name'),  # Text index on normalized_file_name
+            ('file_name',),
+            ('text', 'normalized_file_name'),
         ]
         collection_name = COLLECTION_NAME
 
 async def save_file(media):
     """Save file in database"""
     file_id, file_ref = unpack_new_file_id(media.file_id)
-    # Store original file name
     file_name = media.file_name
-    # Normalize file name: replace multiple spaces with single space, keep hyphens, colons, and parentheses
     normalized_file_name = re.sub(r'\s+', ' ', media.file_name.lower()).strip()
     
     try:
@@ -70,20 +68,22 @@ async def save_file(media):
 
 async def get_search_results(query, file_type=None, max_results=10, offset=0, filter=False):
     """For given query return (results, next_offset, total_results)"""
-    query = re.sub(r'\s+', ' ', query.strip().lower())  # Normalize spaces
+    query = re.sub(r'\s+', ' ', query.strip().lower())
     logger.info(f"Processing query: {query}")
     
-    # Extract year if present
-    year_match = re.search(r'\b(19|20)\d{2}\b', query)
-    year = year_match.group(0) if year_match else None
+    # Extract year and remove parentheses/brackets if present
+    year_match = re.search(r'\b(19|20)\d{2}\b(?:[\)\]\s]*)?$', query)
+    year = year_match.group(1) + year_match.group(2) if year_match else None
     if year:
-        query = re.sub(r'\b(19|20)\d{2}\b', '', query).strip()
+        query = re.sub(r'\b(19|20)\d{2}\b(?:[\)\]\s]*)?$', '', query).strip()
     
     if not query:
         raw_pattern = '.'
     else:
-        # Create a regex that matches spaces or hyphens, preserves colons
-        raw_pattern = re.escape(query).replace(r'\ ', r'[\s\-]+').replace(r'\:', r':')
+        # Create regex that matches spaces or hyphens (zero or more), preserves colons
+        words = query.split()
+        escaped_words = [re.escape(word) for word in words]
+        raw_pattern = r'[\s\-]*'.join(escaped_words)
         if year:
             raw_pattern = f"{raw_pattern}(?:[\s\(\[]*{year}[\)\]]*)?"
     
@@ -118,7 +118,6 @@ async def get_search_results(query, file_type=None, max_results=10, offset=0, fi
     cursor.skip(offset).limit(max_results)
     files = await cursor.to_list(length=max_results)
     
-    # Log matched files for debugging
     if files:
         logger.info(f"Matched files: {[file.file_name for file in files]}")
     else:
