@@ -73,7 +73,7 @@ async def get_search_results(query, file_type=None, max_results=10, offset=0, fi
     
     # Extract year and remove parentheses/brackets if present
     year_match = re.search(r'\b(19|20)\d{2}\b(?:[\)\]\s]*)?$', query)
-    year = year_match.group(1) + year_match.group(2) if year_match else None
+    year = year_match.group(0) if year_match else None
     if year:
         query = re.sub(r'\b(19|20)\d{2}\b(?:[\)\]\s]*)?$', '', query).strip()
     
