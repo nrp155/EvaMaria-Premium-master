@@ -3,7 +3,6 @@ import asyncio
 import re
 import ast
 import math
-import difflib
 from pyrogram.errors.exceptions.bad_request_400 import MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
 from Script import script
 import pyrogram
@@ -30,12 +29,6 @@ logger.setLevel(logging.ERROR)
 BUTTONS = {}
 SPELL_CHECK = {}
 
-def normalize_text(text):
-    if not text:
-        return ""
-    text = re.sub(r'(\*\*|__|\*|_|\~\~|`{1,3})', '', text)
-    text = re.sub(r'<[^>]+>', '', text)
-    return text.lower().strip()
 
 @Client.on_message(filters.group & filters.text & filters.incoming)
 async def give_filter(client, message):
@@ -43,11 +36,12 @@ async def give_filter(client, message):
     if k == False:
         await auto_filter(client, message)
 
+
 @Client.on_callback_query(filters.regex(r"^next"))
 async def next_page(bot, query):
     ident, req, key, offset = query.data.split("_")
     if int(req) not in [query.from_user.id, 0]:
-        return await query.answer("You are using one of my old messages, please send the request again.", show_alert=True)
+        return await query.answer("oKda", show_alert=True)
     try:
         offset = int(offset)
     except:
@@ -104,8 +98,7 @@ async def next_page(bot, query):
     elif off_set is None:
         btn.append(
             [InlineKeyboardButton(f"🗓 {math.ceil(int(offset) / 10) + 1} / {math.ceil(total / 10)}", callback_data="pages"),
-             InlineKeyboardButton("NEXT ⏩", callback_data=f"next_{req}_{key}_{n_offset}")]
-        )
+             InlineKeyboardButton("NEXT ⏩", callback_data=f"next_{req}_{key}_{n_offset}")])
     else:
         btn.append(
             [
@@ -122,6 +115,7 @@ async def next_page(bot, query):
         pass
     await query.answer()
 
+
 @Client.on_callback_query(filters.regex(r"^spolling"))
 async def advantage_spoll_choker(bot, query):
     _, user, movie_ = query.data.split('#')
@@ -133,7 +127,7 @@ async def advantage_spoll_choker(bot, query):
     if not movies:
         return await query.answer("You are clicking on an old button which is expired.", show_alert=True)
     movie = movies[(int(movie_))]
-    await query.answer('Checking if it’s in my database...')
+    await query.answer('මගේ Database එකේ තියෙනවද බලමු...')
     k = await manual_filters(bot, query.message, text=movie)
     if k == False:
         files, offset, total_results = await get_search_results(movie, offset=0, filter=True)
@@ -141,9 +135,10 @@ async def advantage_spoll_choker(bot, query):
             k = (movie, files, offset, total_results)
             await auto_filter(bot, query, k)
         else:
-            k = await query.message.edit('<b>The film or series you requested is not in my database. Come to the @SubsceneLk_Chat group, inform an admin, and request the film. ඔයා ඉල්ලන Film එක හෝ Series එක මගෙ DataBase එකේ නැහැ. @SubsceneLk_Chat ගෲප් එකට ඇවිත් ඇඩ්මින් කෙනෙක් දැනුවත් කරලා ෆිල්ම් එක ඉල්ලගන්න. 😇</b>')
+            k = await query.message.edit('<b>ඔයා ඉල්ලන Film එක හෝ Series එක මගෙ DataBase එකේ නැහැ. @MovieClubFamily_Chat ගෲප් එකට ඇවිත් ඇඩ්මින් කෙනෙක් දැනුවත් කරලා ෆිල්ම් එක ඉල්ලගන්න. 😇</b>')
             await asyncio.sleep(10)
             await k.delete()
+
 
 @Client.on_callback_query()
 async def cb_handler(client: Client, query: CallbackQuery):
@@ -205,6 +200,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         await query.answer()
 
         group_id = query.data.split(":")[1]
+
         act = query.data.split(":")[2]
         hr = await client.get_chat(int(group_id))
         title = hr.title
@@ -233,8 +229,11 @@ async def cb_handler(client: Client, query: CallbackQuery):
         await query.answer()
 
         group_id = query.data.split(":")[1]
+
         hr = await client.get_chat(int(group_id))
+
         title = hr.title
+
         user_id = query.from_user.id
 
         mkact = await make_active(str(user_id), str(group_id))
@@ -251,7 +250,9 @@ async def cb_handler(client: Client, query: CallbackQuery):
         await query.answer()
 
         group_id = query.data.split(":")[1]
+
         hr = await client.get_chat(int(group_id))
+
         title = hr.title
         user_id = query.from_user.id
 
@@ -290,6 +291,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         await query.answer()
 
         userid = query.from_user.id
+
         groupids = await all_connections(str(userid))
         if groupids is None:
             await query.message.edit_text(
@@ -405,7 +407,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton('➕ Add Me To Your Groups ➕', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
         ], [
             InlineKeyboardButton('🔍 Search', switch_inline_query_current_chat=''),
-            InlineKeyboardButton('🤖 Updates', url='https://t.me/SubsceneLk_Chat')
+            InlineKeyboardButton('🤖 Updates', url='https://t.me/MovieClubUpdates')
         ], [
             InlineKeyboardButton('ℹ️ Help', callback_data='help'),
             InlineKeyboardButton('😊 About', callback_data='about')
@@ -436,7 +438,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         )
     elif query.data == "about":
         buttons = [[
-            InlineKeyboardButton('🤖 Updates', url='https://t.me/SubsceneLk_Chat'),
+            InlineKeyboardButton('🤖 Updates', url='https://t.me/MovieClubUpdates'),
             InlineKeyboardButton('♥️ Source', callback_data='source')
         ], [
             InlineKeyboardButton('🏠 Home', callback_data='start'),
@@ -612,38 +614,28 @@ async def cb_handler(client: Client, query: CallbackQuery):
             await query.message.edit_reply_markup(reply_markup)
     await query.answer('Piracy Is Crime')
 
+
 async def auto_filter(client, msg, spoll=False):
     if not spoll:
         message = msg
         settings = await get_settings(message.chat.id)
-        if message.text.startswith("/"): return
+        if message.text.startswith("/"): return  # ignore commands
         if re.findall("((^\/|^,|^!|^\.|^[\U0001F600-\U000E007F]).*)", message.text):
             return
         if 2 < len(message.text) < 100:
-            search = normalize_text(message.text)
-            if not search:
-                return
-            files, offset, total_results = await get_search_results(search, offset=0, filter=True)
-            if files:
-                await send_results(client, message, search, files, offset, total_results, settings)
-                return
-            files, offset, total_results = await fuzzy_search(search)
-            if files:
-                await send_results(client, message, search, files, offset, total_results, settings)
-                return
-            if settings["spell_check"]:
-                await advantage_spell_chok(msg)
-        return
+            search = message.text
+            files, offset, total_results = await get_search_results(search.lower(), offset=0, filter=True)
+            if not files:
+                if settings["spell_check"]:
+                    return await advantage_spell_chok(msg)
+                else:
+                    return
+        else:
+            return
     else:
         settings = await get_settings(msg.message.chat.id)
-        message = msg.message.reply_to_message
+        message = msg.message.reply_to_message  # msg will be callback query
         search, files, offset, total_results = spoll
-        search = normalize_text(search)
-        await send_results(client, message, search, files, offset, total_results, settings)
-        if spoll:
-            await msg.message.delete()
-
-async def send_results(client, message, search, files, offset, total_results, settings):
     pre = 'filep' if settings['file_secure'] else 'file'
     if settings["button"]:
         btn = [
@@ -681,7 +673,6 @@ async def send_results(client, message, search, files, offset, total_results, se
         btn.append(
             [InlineKeyboardButton(text="🗓 1/1", callback_data="pages")]
         )
-
     imdb = await get_poster(search, file=(files[0]).file_name) if settings["imdb"] else None
     TEMPLATE = settings['template']
     if imdb:
@@ -717,12 +708,11 @@ async def send_results(client, message, search, files, offset, total_results, se
             **locals()
         )
     else:
-        cap = f"<b>Is that what you are looking for? : {search}\n\nඔයා හොයන ෆිල්ම් එක හෝ ටීවි සීරිස් එක Group එකේ නැද්ද .Is the movie or TV series you're looking for not in the group? ? 🤕\n\nඑහෙනම් අපේ @SubsceneLk_Chat Group එකට ඇවිත් #Request ටයිප් කරලා  ෆිල්ම් එක හෝ සීරිස් එක ඉල්ලගන්න. 🤗\n\nඋදා :Enter the name of the movie or the year along with the name.\n\nEG -: marco ==== marco 2024\n\nThis is how to add TV series names\n\nEG -: Kingdom ==== Kingdom S01\n\njust type Name of the movie</b>"
-
+        cap = f"<b>ඔයා Type කරපු නම : {search}\n\nඔයා හොයන ෆිල්ම් එක හෝ ටීවි සීරිස් එක Group එකේ නැද්ද ? 🤕\n\nඑහෙනම් අපේ @MovieClubFamily_Chat Group එකට ඇවිත් අපිව Mention කරලා ඒ ෆිල්ම් එක හෝ සීරිස් එක ඉල්ලගන්න. 🤗\n\nඋදා : Endgame 2019 </b>"
     if imdb and imdb.get('poster'):
         try:
             await message.reply_photo(photo=imdb.get('poster'), caption=cap[:1024],
-                                     reply_markup=InlineKeyboardMarkup(btn))
+                                      reply_markup=InlineKeyboardMarkup(btn))
         except (MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty):
             pic = imdb.get('poster')
             poster = pic.replace('.jpg', "._V1_UX360.jpg")
@@ -732,94 +722,67 @@ async def send_results(client, message, search, files, offset, total_results, se
             await message.reply_text(cap, reply_markup=InlineKeyboardMarkup(btn))
     else:
         await message.reply_text(cap, reply_markup=InlineKeyboardMarkup(btn))
+    if spoll:
+        await msg.message.delete()
 
-async def fuzzy_search(query):
-    query_variations = [
-        query,
-        query.replace('(', '').replace(')', ''),
-        query.split('(')[0].strip(),
-        query.replace(' ', '')
-    ]
-    for q in query_variations:
-        files, offset, total_results = await get_search_results(q, offset=0, filter=True)
-        if files:
-            return files, offset, total_results
-    return [], 0, 0
 
 async def advantage_spell_chok(msg):
-    query = normalize_text(msg.text)
-    if not query:
-        k = await msg.reply("Please provide a valid movie or series name.")
+    query = re.sub(
+        r"\b(pl(i|e)*?(s|z+|ease|se|ese|(e+)s(e)?)|((send|snd|giv(e)?|gib)(\sme)?)|movie(s)?|new|latest|br((o|u)h?)*|^h(e|a)?(l)*(o)*|mal(ayalam)?|t(h)?amil|file|that|find|und(o)*|kit(t(i|y)?)?o(w)?|thar(u)?(o)*w?|kittum(o)*|aya(k)*(um(o)*)?|full\smovie|any(one)|with\ssubtitle(s)?)",
+        "", msg.text, flags=re.IGNORECASE)  # plis contribute some common words
+    query = query.strip() + " movie"
+    g_s = await search_gagala(query)
+    g_s += await search_gagala(msg.text)
+    gs_parsed = []
+    if not g_s:
+        k = await msg.reply("I couldn't find any movie in that name.")
         await asyncio.sleep(8)
         await k.delete()
         return
-
-    query_cleaned = re.sub(
-        r"\b(pl(i|e)*?(s|z+|ease|se|ese|(e+)s(e)?)|((send|snd|giv(e)?|gib)(\sme)?)|new|latest|br((o|u)h?)*|^h(e|a)?(l)*(o)*|mal(ayalam)?|t(h)?amil|file|that|find|und(o)*|kit(t(i|y)?)?o(w)?|thar(u)?(o)*w?|kittum(o)*|aya(k)*(um(o)*)?|full\smovie|any(one)|with\ssubtitle(s)?)",
-        "", query, flags=re.IGNORECASE).strip()
-
-    if not query_cleaned:
-        k = await msg.reply("Please provide a valid movie or series name.")
-        await asyncio.sleep(8)
-        await k.delete()
-        return
-
-    files, offset, total_results = await get_search_results(query_cleaned, offset=0, filter=True)
-    if files:
-        settings = await get_settings(msg.chat.id)
-        await send_results(msg.client, msg, query_cleaned, files, offset, total_results, settings)
-        return
-
-    all_movies = await Media.find().to_list(50)
-    movie_titles = [normalize_text(m.file_name) for m in all_movies if m.file_name]
-    normalized_query = re.sub(r'(\-|\(|\)|_)', '', query_cleaned, flags=re.IGNORECASE).strip()
-    close_matches = difflib.get_close_matches(normalized_query, [re.sub(r'(\-|\(|\)|_)', '', t, flags=re.IGNORECASE) for t in movie_titles], n=3, cutoff=0.6)
-    movielist = [t for t in movie_titles if re.sub(r'(\-|\(|\)|_)', '', t, flags=re.IGNORECASE) in close_matches]
-
+    regex = re.compile(r".*(imdb|wikipedia).*", re.IGNORECASE)  # look for imdb / wiki results
+    gs = list(filter(regex.match, g_s))
+    gs_parsed = [re.sub(
+        r'\b(\-([a-zA-Z-\s])\-\simdb|(\-\s)?imdb|(\-\s)?wikipedia|\(|\)|\-|reviews|full|all|episode(s)?|film|movie|series)',
+        '', i, flags=re.IGNORECASE) for i in gs]
+    if not gs_parsed:
+        reg = re.compile(r"watch(\s[a-zA-Z0-9_\s\-\(\)]*)*\|.*",
+                         re.IGNORECASE)  # match something like Watch Niram | Amazon Prime
+        for mv in g_s:
+            match = reg.match(mv)
+            if match:
+                gs_parsed.append(match.group(1))
+    user = msg.from_user.id if msg.from_user else 0
+    movielist = []
+    gs_parsed = list(dict.fromkeys(gs_parsed))  # removing duplicates https://stackoverflow.com/a/7961425
+    if len(gs_parsed) > 3:
+        gs_parsed = gs_parsed[:3]
+    if gs_parsed:
+        for mov in gs_parsed:
+            imdb_s = await get_poster(mov.strip(), bulk=True)  # searching each keyword in imdb
+            if imdb_s:
+                movielist += [movie.get('title') for movie in imdb_s]
+    movielist += [(re.sub(r'(\-|\(|\)|_)', '', i, flags=re.IGNORECASE)).strip() for i in gs_parsed]
+    movielist = list(dict.fromkeys(movielist))  # removing duplicates
     if not movielist:
-        g_s = await search_gagala(query_cleaned)
-        if g_s:
-            gs_parsed = []
-            regex = re.compile(r".*(imdb|wikipedia).*", re.IGNORECASE)
-            gs = list(filter(regex.match, g_s))
-            gs_parsed = [re.sub(
-                r'\b(\-([a-zA-Z-\s])\-\simdb|(\-\s)?imdb|(\-\s)?wikipedia|\-|reviews|full|all|episode(s)?|film|series)',
-                '', i, flags=re.IGNORECASE) for i in gs]
-            if not gs_parsed:
-                reg = re.compile(r"watch(\s[a-zA-Z0-9_\s\-\(\)]*)*\|.*", re.IGNORECASE)
-                for mv in g_s:
-                    match = reg.match(mv)
-                    if match:
-                        gs_parsed.append(match.group(1))
-            movielist = list(dict.fromkeys(gs_parsed))
-            if len(movielist) > 3:
-                movielist = movielist[:3]
-            for mov in movielist:
-                imdb_s = await get_poster(mov.strip(), bulk=True)
-                if imdb_s:
-                    movielist += [movie.get('title') for movie in imdb_s]
-            movielist = list(dict.fromkeys(movielist))
-
-    if not movielist:
-        k = await msg.reply("The name you typed seems incorrect. Please try typing the correct name or check the spelling.")
+        k = await msg.reply("ඔයා Type කරපු නම වැරදියි වගේ.. නිවැරදි නම Type කරලා බලන්න.")
         await asyncio.sleep(8)
         await k.delete()
         return
-
     SPELL_CHECK[msg.id] = movielist
     btn = [[
         InlineKeyboardButton(
             text=movie.strip(),
-            callback_data=f"spolling#{msg.from_user.id if msg.from_user else 0}#{k}",
+            callback_data=f"spolling#{user}#{k}",
         )
     ] for k, movie in enumerate(movielist)]
-    btn.append([InlineKeyboardButton(text="Close", callback_data=f'spolling#{msg.from_user.id if msg.from_user else 0}#close_spellcheck')])
-    await msg.reply("<b>The name you typed doesn't match any film or series in my database.\nIf you're looking for one of the films or series below, click on it. 😌👌</b>",
+    btn.append([InlineKeyboardButton(text="Close", callback_data=f'spolling#{user}#close_spellcheck')])
+    await msg.reply("<b>ඔයා Type කරපු නමින් මගේ DataBase එකේ Film / TV Series නැහැ.\n\nඔයා හොයන්නෙ පල්ලෙහා තියෙන Film හෝ Series වලින් එකක් නම් ඒක උඩ Click කරන්න. 😌👌</b>",
                     reply_markup=InlineKeyboardMarkup(btn))
+
 
 async def manual_filters(client, message, text=False):
     group_id = message.chat.id
-    name = normalize_text(text or message.text)
+    name = text or message.text
     reply_id = message.reply_to_message.id if message.reply_to_message else message.id
     keywords = await get_filters(group_id)
     for keyword in reversed(sorted(keywords, key=len)):
