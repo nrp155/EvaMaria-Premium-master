@@ -3,6 +3,7 @@ import asyncio
 import re
 import ast
 import math
+import logging
 from pyrogram.errors.exceptions.bad_request_400 import MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
 from Script import script
 import pyrogram
@@ -21,10 +22,9 @@ from database.filters_mdb import (
     find_filter,
     get_filters,
 )
-import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.ERROR)
+logger.setLevel(logging.INFO)  # Changed to INFO for more detailed logging
 
 BUTTONS = {}
 SPELL_CHECK = {}
@@ -616,7 +616,8 @@ async def auto_filter(client, msg, spoll=False):
             # Normalize the search query: convert to lowercase, normalize spaces, preserve hyphens and colons
             search = re.sub(r'\s+', ' ', message.text.lower()).strip()  # Replace multiple spaces with single space
             search = re.sub(r'\s*:\s*', ':', search)  # Normalize spaces around colons
-            # Handle year in query (e.g., "Spider Man: Across the Spider Verse 2023")
+            logger.info(f"Normalized search query: {search}")
+            # Handle year in query (e.g., "Spider-Man: Across the Spider-Verse (2023)")
             year_match = re.search(r'\b(19|20)\d{2}\b', search)
             year = year_match.group(0) if year_match else None
             if year:
@@ -627,13 +628,17 @@ async def auto_filter(client, msg, spoll=False):
             if not files:
                 # Try hyphenated version if no results
                 hyphenated_search = search.replace(' ', '-')
+                logger.info(f"Trying hyphenated query: {hyphenated_search}")
                 files, offset, total_results = await get_search_results(hyphenated_search, offset=0, filter=True)
             if not files:
                 if settings["spell_check"]:
+                    logger.info("No database results, falling back to spell check.")
                     return await advantage_spell_chok(msg, year)
                 else:
+                    logger.info("No results found and spell check is disabled.")
                     return
         else:
+            logger.info(f"Query too short or too long: {len(message.text)} characters")
             return
     else:
         settings = await get_settings(msg.message.chat.id)
@@ -746,6 +751,7 @@ async def advantage_spell_chok(msg, year=None):
     query = re.sub(r'\s*:\s*', ':', query)  # Normalize spaces around colons
     if year:
         query = f"{query} {year}".strip()
+    logger.info(f"Spell check query: {query}")
     if not query:
         k = await msg.reply("The query is too vague. Please provide a more specific movie or series name.")
         await asyncio.sleep(8)
@@ -757,6 +763,7 @@ async def advantage_spell_chok(msg, year=None):
     g_s += await search_gagala(msg.text)
     hyphenated_query = query.replace(' ', '-')
     g_s += await search_gagala(hyphenated_query)
+    logger.info(f"External search results: {g_s}")
     gs_parsed = []
     if not g_s:
         k = await msg.reply("I couldn't find any movie or series with that name.")
@@ -798,6 +805,7 @@ async def advantage_spell_chok(msg, year=None):
         await k.delete()
         return
 
+    logger.info(f"Spell check suggestions: {movielist}")
     SPELL_CHECK[msg.id] = movielist
     btn = [[
         InlineKeyboardButton(
