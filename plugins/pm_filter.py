@@ -678,7 +678,7 @@ async def auto_filter(client, msg, spoll=False):
             [InlineKeyboardButton(text="🗓 1/1", callback_data="pages")]
         )
     imdb = await get_poster(search, file=(files[0]).file_name) if settings["imdb"] else None
-    TEMPLATE = settings['template']
+    TEMPLATE = "<b>🏷 Title: {title}\n🎭 Genres: {genres}\n📆 Year: {year}\n🌟 Rating: {rating}/ 10 (based on {votes} user ratings.)\n☀️ Languages : {languages}\n📀 RunTime: {runtime} Minutes\n📆 Release Info : {release_date}\n🎛 Countries : {countries}\n\n┏━━━━•❅•°•❈•°•❅•━━━━┓\n🇱🇰Subscenelk 𝐅𝐚𝐦𝐢𝐥𝐲™🎭\n┗━━━━•❅•°•❈•°•❅•━━━━┛</b>"
     if imdb:
         imdb['cast'] = imdb.get('cast', [])[:MAX_LIST_ELM]
         imdb['director'] = imdb.get('director', [])[:MAX_LIST_ELM]
