@@ -407,7 +407,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton('➕ Add Me To Your Groups ➕', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
         ], [
             InlineKeyboardButton('🔍 Search', switch_inline_query_current_chat=''),
-            InlineKeyboardButton('🤖 Updates', url='https://t.me/MovieClubUpdates')
+            InlineKeyboardButton('🤖 Updates', url='https://t.me/SubsceneLk_Chat')
         ], [
             InlineKeyboardButton('ℹ️ Help', callback_data='help'),
             InlineKeyboardButton('😊 About', callback_data='about')
@@ -438,7 +438,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         )
     elif query.data == "about":
         buttons = [[
-            InlineKeyboardButton('🤖 Updates', url='https://t.me/MovieClubUpdates'),
+            InlineKeyboardButton('🤖 Updates', url='https://t.me/SubsceneLk_Chat'),
             InlineKeyboardButton('♥️ Source', callback_data='source')
         ], [
             InlineKeyboardButton('🏠 Home', callback_data='start'),
@@ -708,7 +708,19 @@ async def auto_filter(client, msg, spoll=False):
             **locals()
         )
     else:
-        cap = f"<b>ඔයා Type කරපු නම : {search}\n\nඔයා හොයන ෆිල්ම් එක හෝ ටීවි සීරිස් එක Group එකේ නැද්ද ? 🤕\n\nඑහෙනම් අපේ @MovieClubFamily_Chat Group එකට ඇවිත් අපිව Mention කරලා ඒ ෆිල්ම් එක හෝ සීරිස් එක ඉල්ලගන්න. 🤗\n\nඋදා : Endgame 2019 </b>"
+        cap = f"<b>Is that what you're looking for? : {search}\n\nIs the movie or TV series you're looking for not in the group? 🤕\n\nThen come to our @SubsceneLk_Chat Group, mention us and #request that movie or series. 🤗\n\nEg : Enter the name of the movie or the year along with the name.
+
+EG -: marco ==== marco 2024
+
+This is how to add TV series names
+
+EG -: Kingdom ==== Kingdom S01
+
+Do NOt Enter Bold Font
+Do not Enter Italic Font
+Do not Enter Capital Font
+
+just type Name of the movie </b>"
     if imdb and imdb.get('poster'):
         try:
             await message.reply_photo(photo=imdb.get('poster'), caption=cap[:1024],
@@ -764,7 +776,7 @@ async def advantage_spell_chok(msg):
     movielist += [(re.sub(r'(\-|\(|\)|_)', '', i, flags=re.IGNORECASE)).strip() for i in gs_parsed]
     movielist = list(dict.fromkeys(movielist))  # removing duplicates
     if not movielist:
-        k = await msg.reply("ඔයා Type කරපු නම වැරදියි වගේ.. නිවැරදි නම Type කරලා බලන්න.")
+        k = await msg.reply("The name you typed seems to be incorrect. Please try typing the correct name.")
         await asyncio.sleep(8)
         await k.delete()
         return
@@ -776,7 +788,7 @@ async def advantage_spell_chok(msg):
         )
     ] for k, movie in enumerate(movielist)]
     btn.append([InlineKeyboardButton(text="Close", callback_data=f'spolling#{user}#close_spellcheck')])
-    await msg.reply("<b>ඔයා Type කරපු නමින් මගේ DataBase එකේ Film / TV Series නැහැ.\n\nඔයා හොයන්නෙ පල්ලෙහා තියෙන Film හෝ Series වලින් එකක් නම් ඒක උඩ Click කරන්න. 😌👌</b>",
+    await msg.reply("<b>There is no Film / TV Series in my Database with the name you typed.\n\nIf you are looking for one of the Film or Series below, click on it. 😌👌</b>",
                     reply_markup=InlineKeyboardMarkup(btn))
 
 
