@@ -28,7 +28,10 @@ class Media(Document):
     caption = fields.StrField(allow_none=True)
 
     class Meta:
-        indexes = ('$file_name', '$normalized_file_name')
+        indexes = [
+            ('file_name',),  # Regular index on file_name
+            ('text', 'normalized_file_name'),  # Text index on normalized_file_name
+        ]
         collection_name = COLLECTION_NAME
 
 async def save_file(media):
