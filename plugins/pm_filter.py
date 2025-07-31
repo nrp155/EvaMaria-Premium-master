@@ -28,6 +28,7 @@ logger.setLevel(logging.ERROR)
 
 BUTTONS = {}
 SPELL_CHECK = {}
+MAX_LIST_ELM = 5  # Limit for cast and crew lists in IMDB template
 
 @Client.on_message(filters.group & filters.text & filters.incoming)
 async def give_filter(client, message):
@@ -612,15 +613,21 @@ async def auto_filter(client, msg, spoll=False):
         if re.findall("((^\/|^,|^!|^\.|^[\U0001F600-\U000E007F]).*)", message.text):
             return
         if 2 < len(message.text) < 100:
-            # Normalize the search query: convert to lowercase and preserve important characters
-            search = message.text.lower()
-            # Handle year in query (e.g., "marco 2024")
+            # Normalize the search query: convert to lowercase, normalize spaces, preserve hyphens and colons
+            search = re.sub(r'\s+', ' ', message.text.lower()).strip()  # Replace multiple spaces with single space
+            search = re.sub(r'\s*:\s*', ':', search)  # Normalize spaces around colons
+            # Handle year in query (e.g., "Spider Man: Across the Spider Verse 2023")
             year_match = re.search(r'\b(19|20)\d{2}\b', search)
             year = year_match.group(0) if year_match else None
             if year:
                 search = re.sub(r'\b(19|20)\d{2}\b', '', search).strip()
                 search = f"{search} {year}".strip()
+            # Try normalized query and hyphenated version
             files, offset, total_results = await get_search_results(search, offset=0, filter=True)
+            if not files:
+                # Try hyphenated version if no results
+                hyphenated_search = search.replace(' ', '-')
+                files, offset, total_results = await get_search_results(hyphenated_search, offset=0, filter=True)
             if not files:
                 if settings["spell_check"]:
                     return await advantage_spell_chok(msg, year)
@@ -672,6 +679,15 @@ async def auto_filter(client, msg, spoll=False):
     imdb = await get_poster(search, file=(files[0]).file_name) if settings["imdb"] else None
     TEMPLATE = settings['template']
     if imdb:
+        # Limit cast and crew lists to MAX_LIST_ELM
+        imdb['cast'] = imdb.get('cast', [])[:MAX_LIST_ELM]
+        imdb['director'] = imdb.get('director', [])[:MAX_LIST_ELM]
+        imdb['writer'] = imdb.get('writer', [])[:MAX_LIST_ELM]
+        imdb['producer'] = imdb.get('producer', [])[:MAX_LIST_ELM]
+        imdb['composer'] = imdb.get('composer', [])[:MAX_LIST_ELM]
+        imdb['cinematographer'] = imdb.get('cinematographer', [])[:MAX_LIST_ELM]
+        imdb['music_team'] = imdb.get('music_team', [])[:MAX_LIST_ELM]
+        imdb['distributors'] = imdb.get('distributors', [])[:MAX_LIST_ELM]
         cap = TEMPLATE.format(
             query=search,
             title=imdb['title'],
@@ -682,21 +698,21 @@ async def auto_filter(client, msg, spoll=False):
             localized_title=imdb['localized_title'],
             kind=imdb['kind'],
             imdb_id=imdb["imdb_id"],
-            cast=imdb["cast"],
+            cast=', '.join(imdb["cast"]) if imdb["cast"] else 'N/A',
             runtime=imdb["runtime"],
-            countries=imdb["countries"],
-            certificates=imdb["certificates"],
-            languages=imdb["languages"],
-            director=imdb["director"],
-            writer=imdb["writer"],
-            producer=imdb["producer"],
-            composer=imdb["composer"],
-            cinematographer=imdb["cinematographer"],
-            music_team=imdb["music_team"],
-            distributors=imdb["distributors"],
+            countries=', '.join(imdb["countries"]) if imdb["countries"] else 'N/A',
+            certificates=', '.join(imdb["certificates"]) if imdb["certificates"] else 'N/A',
+            languages=', '.join(imdb["languages"]) if imdb["languages"] else 'N/A',
+            director=', '.join(imdb["director"]) if imdb["director"] else 'N/A',
+            writer=', '.join(imdb["writer"]) if imdb["writer"] else 'N/A',
+            producer=', '.join(imdb["producer"]) if imdb["producer"] else 'N/A',
+            composer=', '.join(imdb["composer"]) if imdb["composer"] else 'N/A',
+            cinematographer=', '.join(imdb["cinematographer"]) if imdb["cinematographer"] else 'N/A',
+            music_team=', '.join(imdb["music_team"]) if imdb["music_team"] else 'N/A',
+            distributors=', '.join(imdb["distributors"]) if imdb["distributors"] else 'N/A',
             release_date=imdb['release_date'],
             year=imdb['year'],
-            genres=imdb['genres'],
+            genres=', '.join(imdb['genres']) if imdb["genres"] else 'N/A',
             poster=imdb['poster'],
             plot=imdb['plot'],
             rating=imdb['rating'],
@@ -704,7 +720,7 @@ async def auto_filter(client, msg, spoll=False):
             **locals()
         )
     else:
-        cap = f"<b>Is that what you're looking for? : {search}\n\nIs the movie or TV series you're looking for not in the group? 🤕\n\nThen come to our @SubsceneLk_Chat Group, mention us and #request that movie or series. 🤗\n\nEg : Enter the name of the movie or the year along with the name.\n\nEG -: marco 2024\n\nThis is how to add TV series names\n\nEG -: Kingdom S01\n\nDo NOt Enter Bold Font\nDo not Enter Italic Font\nDo not Enter Capital Font\n\njust type Name of the movie </b>"
+        cap = f"<b>Is that what you're looking for? : {search}\n\nIs the movie or TV series you're looking for not in the group? 🤕\n\nThen come to our @SubsceneLk_Chat Group, mention us and #request that movie or series. 🤗\n\nEg : Enter the name of the movie or the year along with the name.\n\nEG -: Spider-Man: Across the Spider-Verse 2023\n\nThis is how to add TV series names\n\nEG -: Kingdom S01\n\nDo NOt Enter Bold Font\nDo not Enter Italic Font\nDo not Enter Capital Font\n\njust type Name of the movie </b>"
     if imdb and imdb.get('poster'):
         try:
             await message.reply_photo(photo=imdb.get('poster'), caption=cap[:1024],
@@ -722,11 +738,12 @@ async def auto_filter(client, msg, spoll=False):
         await msg.message.delete()
 
 async def advantage_spell_chok(msg, year=None):
-    # Preserve apostrophes, hyphens, and years in the query
+    # Preserve apostrophes, hyphens, colons, and years in the query
     query = re.sub(
         r"\b(pl(i|e)*?(s|z+|ease|se|ese|(e+)s(e)?)|((send|snd|giv(e)?|gib)(\sme)?)|movie(s)?|new|latest|br((o|u)h?)*|^h(e|a)?(l)*(o)*|mal(ayalam)?|t(h)?amil|file|that|find|und(o)*|kit(t(i|y)?)?o(w)?|thar(u)?(o)*w?|kittum(o)*|aya(k)*(um(o)*)?|full\smovie|any(one)|with\ssubtitle(s)?)\b",
         "", msg.text, flags=re.IGNORECASE)
-    query = query.strip()
+    query = re.sub(r'\s+', ' ', query).strip()  # Normalize spaces
+    query = re.sub(r'\s*:\s*', ':', query)  # Normalize spaces around colons
     if year:
         query = f"{query} {year}".strip()
     if not query:
@@ -735,9 +752,11 @@ async def advantage_spell_chok(msg, year=None):
         await k.delete()
         return
 
-    # Search with the original query and cleaned query
+    # Search with the original query, normalized query, and hyphenated query
     g_s = await search_gagala(query)
     g_s += await search_gagala(msg.text)
+    hyphenated_query = query.replace(' ', '-')
+    g_s += await search_gagala(hyphenated_query)
     gs_parsed = []
     if not g_s:
         k = await msg.reply("I couldn't find any movie or series with that name.")
@@ -774,7 +793,7 @@ async def advantage_spell_chok(msg, year=None):
     movielist += [i.strip() for i in gs_parsed if i]
     movielist = list(dict.fromkeys(movielist))  # Remove duplicates
     if not movielist:
-        k = await msg.reply("The name you typed seems to be incorrect. Please try typing the correct name, including any apostrophes or hyphens.")
+        k = await msg.reply("The name you typed seems to be incorrect. Please try typing the correct name, including any apostrophes, hyphens, or colons.")
         await asyncio.sleep(8)
         await k.delete()
         return
