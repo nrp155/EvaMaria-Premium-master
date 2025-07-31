@@ -80,10 +80,11 @@ async def get_search_results(query, file_type=None, max_results=10, offset=0, fi
     if not query:
         raw_pattern = '.'
     else:
-        # Create regex that matches spaces or hyphens (zero or more), preserves colons
+        # Replace colons with optional space or colon
+        query = re.sub(r':+', ' ', query)  # Convert colons to spaces for processing
         words = query.split()
         escaped_words = [re.escape(word) for word in words]
-        raw_pattern = r'[\s\-]*'.join(escaped_words)
+        raw_pattern = r'[\s:]*'.join(escaped_words)  # Allow spaces or colons between words
         if year:
             raw_pattern = f"{raw_pattern}(?:[\s\(\[]*{year}[\)\]]*)?"
     
@@ -122,6 +123,9 @@ async def get_search_results(query, file_type=None, max_results=10, offset=0, fi
         logger.info(f"Matched files: {[file.file_name for file in files]}")
     else:
         logger.info("No files matched the query.")
+        # Log all normalized file names for debugging
+        all_files = await Media.find().to_list(length=100)
+        logger.info(f"All normalized file names: {[f.normalized_file_name for f in all_files if f.normalized_file_name]}")
 
     return files, next_offset, total_results
 
