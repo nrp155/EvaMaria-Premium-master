@@ -2,8 +2,8 @@ import asyncio
 import sys
 import os
 
-# Add the plugins directory to the Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'plugins'))
+# Add the database directory to the Python path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'database'))
 
 from ia_filterdb import Media, db
 import re
