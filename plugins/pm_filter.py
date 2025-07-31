@@ -24,11 +24,11 @@ from database.filters_mdb import (
 )
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # Changed to INFO for more detailed logging
+logger.setLevel(logging.INFO)
 
 BUTTONS = {}
 SPELL_CHECK = {}
-MAX_LIST_ELM = 5  # Limit for cast and crew lists in IMDB template
+MAX_LIST_ELM = 5
 
 @Client.on_message(filters.group & filters.text & filters.incoming)
 async def give_filter(client, message):
@@ -170,7 +170,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         else:
             return await query.answer('Piracy Is Crime')
 
-        st = await client.get_chat_member(grp_id, userid)
+        st = await client.get_idx_member(grp_id, userid)
         if (st.status == enums.ChatMemberStatus.OWNER) or (str(userid) in ADMINS):
             await del_all(query.message, grp_id, title)
         else:
@@ -416,7 +416,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton('Auto Filter', callback_data='autofilter')
         ], [
             InlineKeyboardButton('Connection', callback_data='coct'),
-            InlineKeyboardButton('Extra Mods', callback_data='extra')
+            InlineKeyboardButton('Extra Mods',MEA callback_data='extra')
         ], [
             InlineKeyboardButton('🏠 Home', callback_data='start'),
             InlineKeyboardButton('🔮 Status', callback_data='stats')
@@ -613,20 +613,16 @@ async def auto_filter(client, msg, spoll=False):
         if re.findall("((^\/|^,|^!|^\.|^[\U0001F600-\U000E007F]).*)", message.text):
             return
         if 2 < len(message.text) < 100:
-            # Normalize the search query: convert to lowercase, normalize spaces, preserve hyphens and colons
-            search = re.sub(r'\s+', ' ', message.text.lower()).strip()  # Replace multiple spaces with single space
-            search = re.sub(r'\s*:\s*', ':', search)  # Normalize spaces around colons
+            search = re.sub(r'\s+', ' ', message.text.lower()).strip()
+            search = re.sub(r'\s*:\s*', ':', search)
             logger.info(f"Normalized search query: {search}")
-            # Handle year in query (e.g., "Spider-Man: Across the Spider-Verse (2023)")
-            year_match = re.search(r'\b(19|20)\d{2}\b', search)
+            year_match = re.search(r'\b(19|20)\d{2}\b(?:[\)\]\s]*)?$', search)
             year = year_match.group(0) if year_match else None
             if year:
-                search = re.sub(r'\b(19|20)\d{2}\b', '', search).strip()
+                search = re.sub(r'\b(19|20)\d{2}\b(?:[\)\]\s]*)?$', '', search).strip()
                 search = f"{search} {year}".strip()
-            # Try normalized query and hyphenated version
             files, offset, total_results = await get_search_results(search, offset=0, filter=True)
             if not files:
-                # Try hyphenated version if no results
                 hyphenated_search = search.replace(' ', '-')
                 logger.info(f"Trying hyphenated query: {hyphenated_search}")
                 files, offset, total_results = await get_search_results(hyphenated_search, offset=0, filter=True)
@@ -642,7 +638,7 @@ async def auto_filter(client, msg, spoll=False):
             return
     else:
         settings = await get_settings(msg.message.chat.id)
-        message = msg.message.reply_to_message  # msg will be callback query
+        message = msg.message.reply_to_message
         search, files, offset, total_results = spoll
     pre = 'filep' if settings['file_secure'] else 'file'
     if settings["button"]:
@@ -684,7 +680,6 @@ async def auto_filter(client, msg, spoll=False):
     imdb = await get_poster(search, file=(files[0]).file_name) if settings["imdb"] else None
     TEMPLATE = settings['template']
     if imdb:
-        # Limit cast and crew lists to MAX_LIST_ELM
         imdb['cast'] = imdb.get('cast', [])[:MAX_LIST_ELM]
         imdb['director'] = imdb.get('director', [])[:MAX_LIST_ELM]
         imdb['writer'] = imdb.get('writer', [])[:MAX_LIST_ELM]
@@ -743,12 +738,11 @@ async def auto_filter(client, msg, spoll=False):
         await msg.message.delete()
 
 async def advantage_spell_chok(msg, year=None):
-    # Preserve apostrophes, hyphens, colons, and years in the query
     query = re.sub(
         r"\b(pl(i|e)*?(s|z+|ease|se|ese|(e+)s(e)?)|((send|snd|giv(e)?|gib)(\sme)?)|movie(s)?|new|latest|br((o|u)h?)*|^h(e|a)?(l)*(o)*|mal(ayalam)?|t(h)?amil|file|that|find|und(o)*|kit(t(i|y)?)?o(w)?|thar(u)?(o)*w?|kittum(o)*|aya(k)*(um(o)*)?|full\smovie|any(one)|with\ssubtitle(s)?)\b",
         "", msg.text, flags=re.IGNORECASE)
-    query = re.sub(r'\s+', ' ', query).strip()  # Normalize spaces
-    query = re.sub(r'\s*:\s*', ':', query)  # Normalize spaces around colons
+    query = re.sub(r'\s+', ' ', query).strip()
+    query = re.sub(r'\s*:\s*', ':', query)
     if year:
         query = f"{query} {year}".strip()
     logger.info(f"Spell check query: {query}")
@@ -758,20 +752,23 @@ async def advantage_spell_chok(msg, year=None):
         await k.delete()
         return
 
-    # Search with the original query, normalized query, and hyphenated query
-    g_s = await search_gagala(query)
-    g_s += await search_gagala(msg.text)
-    hyphenated_query = query.replace(' ', '-')
-    g_s += await search_gagala(hyphenated_query)
-    logger.info(f"External search results: {g_s}")
+    try:
+        g_s = await search_gagala(query)
+        g_s += await search_gagala(msg.text)
+        hyphenated_query = query.replace(' ', '-')
+        g_s += await search_gagala(hyphenated_query)
+        logger.info(f"External search results: {g_s}")
+    except Exception as e:
+        logger.error(f"search_gagala failed: {str(e)}")
+        g_s = []
+
     gs_parsed = []
     if not g_s:
-        k = await msg.reply("I couldn't find any movie or series with that name.")
+        k = await msg.reply("I couldn't find any movie or series with that name. Please check the spelling or try a different format.")
         await asyncio.sleep(8)
         await k.delete()
         return
 
-    # Filter IMDb/Wikipedia results
     regex = re.compile(r".*(imdb|wikipedia).*", re.IGNORECASE)
     gs = list(filter(regex.match, g_s))
     gs_parsed = [re.sub(
@@ -787,18 +784,21 @@ async def advantage_spell_chok(msg, year=None):
 
     user = msg.from_user.id if msg.from_user else 0
     movielist = []
-    gs_parsed = list(dict.fromkeys(gs_parsed))  # Remove duplicates
+    gs_parsed = list(dict.fromkeys(gs_parsed))
     if len(gs_parsed) > 5:
-        gs_parsed = gs_parsed[:5]  # Limit to 5 suggestions
+        gs_parsed = gs_parsed[:5]
 
     for mov in gs_parsed:
         if mov:
-            imdb_s = await get_poster(mov.strip(), bulk=True)
-            if imdb_s:
-                movielist += [movie.get('title') for movie in imdb_s]
+            try:
+                imdb_s = await get_poster(mov.strip(), bulk=True)
+                if imdb_s:
+                    movielist += [movie.get('title') for movie in imdb_s]
+            except Exception as e:
+                logger.error(f"get_poster failed for {mov}: {str(e)}")
 
     movielist += [i.strip() for i in gs_parsed if i]
-    movielist = list(dict.fromkeys(movielist))  # Remove duplicates
+    movielist = list(dict.fromkeys(movielist))
     if not movielist:
         k = await msg.reply("The name you typed seems to be incorrect. Please try typing the correct name, including any apostrophes, hyphens, or colons.")
         await asyncio.sleep(8)
